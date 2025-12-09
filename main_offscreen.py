@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from PIL import Image
+import imageio
 from libero.libero import benchmark, get_libero_path
 from libero.libero.envs import OffScreenRenderEnv
 
@@ -33,8 +33,10 @@ init_state_id = 0
 env.set_init_state(init_states[init_state_id])
 
 dummy_action = [0.] * 7
-print("[info] Starting rendering. Saving images to ./renders/")
+print("[info] Starting rendering. Collecting frames for video...")
 os.makedirs("renders", exist_ok=True)
+
+frames = []
 
 try:
     for step in range(100):
@@ -43,12 +45,11 @@ try:
         # Get rendered image from observations
         if "agentview_image" in obs:
             img = obs["agentview_image"]
-            # Convert to PIL Image and save
-            img_pil = Image.fromarray(img)
-            img_pil.save(f"renders/step_{step:04d}.png")
+            # imageio uses RGB format, so keep the image as is
+            frames.append(img)
 
             if step % 10 == 0:
-                print(f"[info] Step {step}, saved image")
+                print(f"[info] Step {step}, collected frame")
 
         if done:
             print(f"[info] Task completed at step {step}")
@@ -59,5 +60,13 @@ except KeyboardInterrupt:
 finally:
     env.close()
     print("[info] Environment closed")
-    print("[info] Images saved to ./renders/ directory")
-    print("[info] You can create a video with: ffmpeg -framerate 20 -i renders/step_%04d.png -c:v libx264 -pix_fmt yuv420p output.mp4")
+    
+    # Save video
+    if frames:
+        print(f"[info] Saving video with {len(frames)} frames...")
+        fps = 20
+        video_path = "renders/output.mp4"
+        imageio.mimwrite(video_path, frames, fps=fps, codec='libx264', quality=8)
+        print(f"[info] Video saved to {video_path}")
+    else:
+        print("[info] No frames collected")
